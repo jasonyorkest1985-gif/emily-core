@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Lead {
+  id                   String    @id @default(cuid())
+  phone                String    @unique
+  fullName             String?
+  email                String?
+  address              String?
+  projectType          String?
+  projectDetails       String?
+  timeline             String?
+  budgetRange          String?
+  leadTemperature      String?   @default("cold")
+  appointmentBooked    Boolean   @default(false)
+  appointmentStart     DateTime?
+  appointmentEnd       DateTime?
+  nextStep             String?
+  summary              String?
+  shoppingSignal       Boolean   @default(false)
+  hotSignal            Boolean   @default(false)
+  hoaDelay             Boolean   @default(false)
+  insuranceClaim       Boolean   @default(false)
+  competitorMentioned  Boolean   @default(false)
+  referralAdjacent     Boolean   @default(false)
+  escalated            Boolean   @default(false)
+  dnc                  Boolean   @default(false)
+  objections           String[]  @default([])
+  callHistory          Json?
+  commandsIssued       Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  calls Call[]
+}
+
+model Call {
+  id             String   @id @default(cuid())
+  leadId         String
+  callId         String?  @unique
+  transcript     String?
+  duration       Int?
+  commandsIssued Json?
+  tasksCompleted Json?
+  outcome        String?
+  createdAt      DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
