@@ -21,7 +21,12 @@ export async function POST(req: NextRequest) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_FROM_NUMBER;
-  const to = process.env.JON_PHONE_NUMBER;
+
+  // If `to` is provided use it (outbound to lead/caller), otherwise default to Jon
+  const to =
+    typeof body.to === "string" && body.to.trim()
+      ? body.to.trim()
+      : process.env.JON_PHONE_NUMBER;
 
   if (!accountSid || !authToken || !from || !to) {
     console.error("[text-jon] Missing Twilio env vars");
