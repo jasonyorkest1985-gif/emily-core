@@ -38,6 +38,7 @@ model Lead {
   updatedAt            DateTime  @updatedAt
 
   calls Call[]
+  pets  Pet[]
 }
 
 model Call {
@@ -52,4 +53,29 @@ model Call {
   createdAt      DateTime @default(now())
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model Pet {
+  id               String    @id @default(cuid())
+  leadId           String
+  petName          String?
+  breed            String?
+  color            String?
+  weight           String?
+  dateOfBirth      String?
+  sex              String?
+  spayedNeutered   Boolean   @default(false)
+  medicalIssues    String?
+  allergies        String?
+  vetName          String?
+  vetPhone         String?
+  rabiesCurrent    Boolean   @default(false)
+  rabiesExpiration String?
+  behavior         String?
+  groomingNotes    String?
+  lastGroomed      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  owner Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 }
