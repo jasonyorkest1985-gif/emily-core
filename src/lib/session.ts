@@ -1,5 +1,5 @@
 export const COOKIE_NAME = "dashboard_session";
-const PAYLOAD = "dashboard_authenticated";
+const PAYLOAD = "heads-and-tails-dashboard";
 
 function bufToBase64url(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
