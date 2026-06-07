@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getValidAccessToken } from "@/lib/googleAuth";
 
-// TODO: Wire Google Calendar OAuth. Exchange refresh token for access token,
-// then POST to the Calendar Events API with the attendees list to create the event
-// and send invites.
+interface CalendarEvent {
+  id: string;
+  htmlLink: string;
+}
 
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
@@ -16,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { start, end, title } = body;
+  const { start, end, title, description, attendeeEmail } = body;
   if (typeof start !== "string" || !start.trim()) {
     return NextResponse.json({ error: "start is required" }, { status: 400 });
   }
@@ -27,5 +29,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
-  return NextResponse.json({ created: false, message: "Google Calendar not yet configured" });
+  let accessToken: string;
+  try {
+    accessToken = await getValidAccessToken();
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Google auth error" },
+      { status: 503 }
+    );
+  }
+
+  const attendees =
+    typeof attendeeEmail === "string" && attendeeEmail.trim()
+      ? [{ email: attendeeEmail.trim() }]
+      : [];
+
+  const eventRes = await fetch(
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=all",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        summary: title,
+        description: typeof description === "string" ? description : undefined,
+        start: { dateTime: start },
+        end: { dateTime: end },
+        attendees,
+      }),
+    }
+  );
+
+  if (!eventRes.ok) {
+    const text = await eventRes.text();
+    return NextResponse.json({ error: `Google API error: ${text}` }, { status: 502 });
+  }
+
+  const event = (await eventRes.json()) as CalendarEvent;
+  return NextResponse.json({ created: true, eventId: event.id, link: event.htmlLink });
 }
