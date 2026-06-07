@@ -2,25 +2,93 @@ import { NextRequest, NextResponse } from "next/server";
 import { getValidAccessToken } from "@/lib/googleAuth";
 
 interface FreeBusyResponse {
-  calendars: Record<string, { busy: { start: string; end: string }[] }>;
+  calendars?: Record<string, { busy?: { start: string; end: string }[] }>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function getString(body: Record<string, unknown>, key: string): string | undefined {
+  const value = body[key];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function getNumber(body: Record<string, unknown>, key: string): number | undefined {
+  const value = body[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function parseDate(value: string, fieldName: string): Date | NextResponse {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return NextResponse.json({ error: `${fieldName} must be a valid date/time` }, { status: 400 });
+  }
+  return date;
+}
+
+function overlapsBusySlot(
+  slotStartMs: number,
+  slotEndMs: number,
+  busySlots: { start: string; end: string }[]
+): boolean {
+  return busySlots.some((busy) => {
+    const busyStartMs = new Date(busy.start).getTime();
+    const busyEndMs = new Date(busy.end).getTime();
+
+    if (Number.isNaN(busyStartMs) || Number.isNaN(busyEndMs)) {
+      return false;
+    }
+
+    return busyStartMs < slotEndMs && busyEndMs > slotStartMs;
+  });
 }
 
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
+
   try {
     const parsed = await req.json();
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    if (!isRecord(parsed)) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
-    body = parsed as Record<string, unknown>;
+    body = parsed;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { durationMinutes } = body;
-  if (typeof durationMinutes !== "number") {
-    return NextResponse.json({ error: "durationMinutes is required" }, { status: 400 });
+  const startRaw = getString(body, "start");
+  const endRaw = getString(body, "end");
+  const durationMinutes = getNumber(body, "durationMinutes");
+  const calendarEmail = getString(body, "calendarEmail");
+  const timeZone = getString(body, "timeZone") ?? "America/Chicago";
+
+  if (!startRaw) {
+    return NextResponse.json({ error: "start is required" }, { status: 400 });
   }
+
+  if (!endRaw) {
+    return NextResponse.json({ error: "end is required" }, { status: 400 });
+  }
+
+  if (!durationMinutes || durationMinutes <= 0 || durationMinutes > 480) {
+    return NextResponse.json(
+      { error: "durationMinutes must be a positive number no greater than 480" },
+      { status: 400 }
+    );
+  }
+
+  const startDate = parseDate(startRaw, "start");
+  if (startDate instanceof NextResponse) return startDate;
+
+  const endDate = parseDate(endRaw, "end");
+  if (endDate instanceof NextResponse) return endDate;
+
+  if (endDate.getTime() <= startDate.getTime()) {
+    return NextResponse.json({ error: "end must be after start" }, { status: 400 });
+  }
+
+  const calendarId = calendarEmail ?? "primary";
 
   let accessToken: string;
   try {
@@ -32,9 +100,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const now = new Date();
-  const rangeEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
   const freeBusyRes = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
     method: "POST",
     headers: {
@@ -42,9 +107,10 @@ export async function POST(req: NextRequest) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      timeMin: now.toISOString(),
-      timeMax: rangeEnd.toISOString(),
-      items: [{ id: "primary" }],
+      timeMin: startDate.toISOString(),
+      timeMax: endDate.toISOString(),
+      timeZone,
+      items: [{ id: calendarId }],
     }),
   });
 
@@ -54,42 +120,30 @@ export async function POST(req: NextRequest) {
   }
 
   const freeBusy = (await freeBusyRes.json()) as FreeBusyResponse;
-  const busySlots = freeBusy.calendars["primary"]?.busy ?? [];
+  const busySlots = freeBusy.calendars?.[calendarId]?.busy ?? [];
 
-  // Build available 30-min slots across business hours (8am-6pm) for next 7 days
   const slotMs = durationMinutes * 60 * 1000;
   const availableSlots: { start: string; end: string }[] = [];
 
-  for (let d = 0; d < 7; d++) {
-    const day = new Date(now);
-    day.setDate(day.getDate() + d);
+  for (
+    let cursorMs = startDate.getTime();
+    cursorMs + slotMs <= endDate.getTime();
+    cursorMs += slotMs
+  ) {
+    const slotStartMs = cursorMs;
+    const slotEndMs = cursorMs + slotMs;
 
-    // Business hours: 8am-6pm local (using UTC for simplicity — adjust TZ as needed)
-    const dayStart = new Date(day);
-    dayStart.setHours(8, 0, 0, 0);
-    const dayEnd = new Date(day);
-    dayEnd.setHours(18, 0, 0, 0);
-
-    let cursor = Math.max(dayStart.getTime(), now.getTime());
-
-    while (cursor + slotMs <= dayEnd.getTime()) {
-      const slotStart = cursor;
-      const slotEnd = cursor + slotMs;
-
-      const overlaps = busySlots.some(
-        (b) => new Date(b.start).getTime() < slotEnd && new Date(b.end).getTime() > slotStart
-      );
-
-      if (!overlaps) {
-        availableSlots.push({
-          start: new Date(slotStart).toISOString(),
-          end: new Date(slotEnd).toISOString(),
-        });
-      }
-
-      cursor += slotMs;
+    if (!overlapsBusySlot(slotStartMs, slotEndMs, busySlots)) {
+      availableSlots.push({
+        start: new Date(slotStartMs).toISOString(),
+        end: new Date(slotEndMs).toISOString(),
+      });
     }
   }
 
-  return NextResponse.json({ availableSlots });
+  return NextResponse.json({
+    availableSlots,
+    calendarId,
+    timeZone,
+  });
 }
