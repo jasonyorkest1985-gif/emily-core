@@ -52,6 +52,14 @@ interface DashboardData {
   allCustomers: Lead[];
 }
 
+interface Notification {
+  id: string;
+  type: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
+
 type Tab = "today" | "recent" | "customers";
 
 type ModalState =
@@ -531,6 +539,8 @@ export default function DashboardPage() {
   const [tab, setTab] = useState<Tab>("today");
   const [modal, setModal] = useState<ModalState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifs, setShowNotifs] = useState(false);
 
   const reload = async () => {
     try {
@@ -544,7 +554,20 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => { reload(); }, []);
+  const loadNotifs = async () => {
+    try {
+      const r = await fetch("/api/dashboard/notifications");
+      if (r.ok) { const d = await r.json(); setNotifications(d.notifications ?? []); }
+    } catch {}
+  };
+
+  const markAllRead = async () => {
+    await fetch("/api/dashboard/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  useEffect(() => { reload(); loadNotifs(); }, []);
+  useEffect(() => { const t = setInterval(loadNotifs, 30000); return () => clearInterval(t); }, []);
 
   const saveCustomer = async (f: CustF) => {
     setSaving(true);
@@ -596,8 +619,43 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-green-50">
       <div className="bg-green-700 text-white px-4 pb-4 pt-6">
         <div className="max-w-lg mx-auto">
-          <h1 className="text-2xl font-bold">🐾 Angela&apos;s Dashboard</h1>
-          <p className="text-green-300 text-sm mt-0.5">Heads &amp; Tails Grooming</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">🐾 Angela&apos;s Dashboard</h1>
+              <p className="text-green-300 text-sm mt-0.5">Heads &amp; Tails Grooming</p>
+            </div>
+            <div className="relative">
+              <button onClick={() => { setShowNotifs(v => !v); if (!showNotifs) markAllRead(); }}
+                className="relative bg-green-600 rounded-full w-11 h-11 flex items-center justify-center text-xl">
+                🔔
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+              {showNotifs && (
+                <div className="absolute right-0 top-13 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                    <span className="font-bold text-gray-800">Notifications</span>
+                    <button onClick={() => setShowNotifs(false)} className="text-gray-400 text-xl">&times;</button>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400">No notifications yet</div>
+                    ) : notifications.map(n => (
+                      <div key={n.id} className={`px-4 py-3 border-b border-gray-50 ${n.read ? "opacity-60" : "bg-green-50"}`}>
+                        <div className="text-sm font-semibold text-gray-800">
+                          {n.type === "booking" ? "📅" : n.type === "call" ? "📞" : "🐾"} {n.message}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">{new Date(n.createdAt).toLocaleString()}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
