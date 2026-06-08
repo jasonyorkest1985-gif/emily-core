@@ -93,3 +93,12 @@ model Pet {
 
   owner Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 }
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  message   String
+  read      Boolean  @default(false)
+  leadId    String?
+  createdAt DateTime @default(now())
+}

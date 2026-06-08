@@ -124,6 +124,7 @@ async function handleEndOfCallReport(msg: VapiMessage) {
     },
   });
 
+  await prisma.notification.create({ data: { type: "call", message: `Call ended${phone ? ` from ${phone}` : ""}${summary ? ` — ${(summary as string).slice(0, 80)}` : ""}`, leadId: lead.id } });
   console.log("[vapi] end-of-call-report: saved call for lead", { leadId: lead.id, callId });
 }
 

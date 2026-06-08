@@ -81,6 +81,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const notifParts = [str("firstName") ?? str("lastName") ?? "New customer", str("petName") ? `— ${str("petName")}` : "", str("serviceRequested") ? `(${str("serviceRequested")})` : ""].filter(Boolean).join(" ");
+    await prisma.notification.create({ data: { type: str("appointmentStart") ? "booking" : "intake", message: notifParts || "New grooming intake received", leadId: lead.id } });
     return NextResponse.json({ ok: true, leadId: lead.id });
   } catch (err) {
     console.error("[save-grooming-intake]", err);
