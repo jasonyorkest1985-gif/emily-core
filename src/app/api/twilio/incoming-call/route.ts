@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     return xmlResponse("<Response><Hangup/></Response>");
   }
 
-  const conferenceName = `hunt-concrete-${callSid}`;
+  const conferenceName = `heads-and-tails-${callSid}`;
   const baseUrl = process.env.CONFERENCE_BASE_URL ?? "";
   const accountSid = process.env.TWILIO_ACCOUNT_SID!;
   const authToken = process.env.TWILIO_AUTH_TOKEN!;

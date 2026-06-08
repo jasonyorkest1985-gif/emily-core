@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const to =
     typeof body.to === "string" && body.to.trim()
       ? body.to.trim()
-      : process.env.JON_PHONE_NUMBER;
+      : process.env.ANGELA_PHONE_NUMBER;
 
   if (!accountSid || !authToken || !from || !to) {
     console.error("[text-jon] Missing Twilio env vars");

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_FROM_NUMBER;
-  const jonPhone = process.env.JON_PHONE_NUMBER;
+  const jonPhone = process.env.ANGELA_PHONE_NUMBER;
 
   if (!accountSid || !authToken || !from || !jonPhone) {
     console.error("[bridge-jon] Missing Twilio env vars");

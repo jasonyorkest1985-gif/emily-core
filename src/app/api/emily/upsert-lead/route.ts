@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
   // Lead fields
   const leadData = {
     ...(typeof body.fullName === "string" && { fullName: body.fullName }),
+    ...(typeof body.fullName === "string" && body.fullName.trim() && { firstName: body.fullName.trim().split(" ")[0], lastName: body.fullName.trim().split(" ").slice(1).join(" ") || null }),
     ...(typeof body.email === "string" && { email: body.email }),
     ...(typeof body.address === "string" && { address: body.address }),
     ...(typeof body.projectType === "string" && { projectType: body.projectType }),

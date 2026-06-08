@@ -120,7 +120,7 @@ async function handleEndOfCallReport(msg: VapiMessage) {
       ...(callId && { callId }),
       ...(typeof transcript === "string" && { transcript }),
       ...(duration !== undefined && { duration }),
-      ...(recordingUrl && { outcome: recordingUrl }),
+      ...(msg.endedReason && { outcome: msg.endedReason }),
       ...(toJson(msg.messages) !== undefined && { tasksCompleted: toJson(msg.messages) }),
     },
   });
