@@ -80,7 +80,6 @@ async function handleEndOfCallReport(msg: VapiMessage) {
   const callId = msg.call?.id;
   const phone = msg.call?.customer?.number;
   const transcript = msg.transcript ?? null;
-  const recordingUrl = msg.recordingUrl ?? null;
   const summary = msg.analysis?.summary ?? msg.summary ?? null;
 
   // Compute duration from call timestamps if available
