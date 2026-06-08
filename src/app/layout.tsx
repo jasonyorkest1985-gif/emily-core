@@ -14,8 +14,14 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Emily Core",
-  description: "Emily AI — Sales agent backend",
+  title: "Heads & Tails Dashboard",
+  description: "Angela's grooming salon dashboard",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "H&T Dashboard",
+  },
 };
 
 export default function RootLayout({
@@ -25,9 +31,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <head>
+        <meta name="theme-color" content="#15803d" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="H&T Dashboard" />
+      </head>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
       </body>
     </html>
